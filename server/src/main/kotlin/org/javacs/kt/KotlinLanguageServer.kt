@@ -6,6 +6,7 @@ import org.eclipse.lsp4j.jsonrpc.services.JsonDelegate
 import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
+import org.eclipse.lsp4j.WorkspaceFolder
 import org.javacs.kt.commands.ALL_COMMANDS
 import org.javacs.kt.externalsources.JarClassContentProvider
 import org.javacs.kt.util.AsyncExecutor
@@ -92,11 +93,21 @@ class KotlinLanguageServer : LanguageServer, LanguageClientAware, Closeable {
             progressFactory = LanguageClientProgress.Factory(client)
         }
 
-        val folders = params.workspaceFolders
-        val progress = params.workDoneToken?.let { LanguageClientProgress("Workspace folders", it, client) }
+        val progress = params.workDoneToken?.let { LanguageClientProgress("Folders", it, client) }
 
-        folders.forEachIndexed { i, folder ->
-            LOG.info("Adding workspace folder {}", folder.name)
+        val folders = if (clientCapabilities?.workspace?.workspaceFolders ?: false) {
+            params.workspaceFolders
+        } else if (params.rootUri !== null) {
+            val folder = WorkspaceFolder()
+            folder.uri = params.rootUri
+            folder.name = "root"
+            listOf(folder)
+        } else {
+            null
+        }
+
+        folders?.forEachIndexed { i, folder ->
+            LOG.info("Adding folder {}", folder.name)
             val progressPrefix = "[${i + 1}/${folders.size}] ${folder.name}"
             val progressPercent = (100 * i) / folders.size
 
